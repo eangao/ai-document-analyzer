@@ -129,9 +129,6 @@ ai-document-analyzer/
 │   └── analysis.ts                # TypeScript interfaces
 ├── lib/
 │   └── rate-limit.ts              # API rate limiter (5 req/min per IP)
-├── docs/
-│   ├── AI-Document-Analyzer-Build-Guide-NextJS16.md
-│   └── claude-code-prompt-ai-doc-analyzer.md
 └── next.config.ts                 # Next.js 16 TypeScript config
 ```
 
