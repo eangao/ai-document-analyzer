@@ -1,7 +1,7 @@
 /**
  * PDF text extraction utility.
  * Provides a clean, typed interface for extracting text from PDF buffers.
- * Uses unpdf library (primary) with fallback to pdf-parse if needed.
+ * Uses unpdf library (modern, TypeScript-native, no pdfjs-dist dependency).
  *
  * Key features:
  * - Typed error handling with specific error types
@@ -17,8 +17,6 @@ import type {
   PDFValidationResult,
   PDFExtractionOptions,
 } from "@/types/pdf-extraction";
-
-import { PDFParse } from "pdf-parse";
 
 // Constants
 const DEFAULT_MIN_TEXT_LENGTH = 50;
@@ -70,7 +68,7 @@ export function validatePDFInput(
 }
 
 /**
- * Extracts text from a PDF buffer.
+ * Extracts text from a PDF buffer using unpdf library.
  *
  * @param buffer - PDF file as Buffer or Uint8Array
  * @param options - Configuration options (maxTextLength, minTextLength)
@@ -85,7 +83,7 @@ export async function extractPDFText(
   const validation = validatePDFInput(buffer);
   if (!validation.isValid) {
     throw createPDFExtractionError(
-      validation.error || "INVALID_INPUT",
+      "INVALID_INPUT",
       validation.message || "Invalid PDF input"
     );
   }
@@ -95,29 +93,18 @@ export async function extractPDFText(
   const maxTextLength = options?.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH;
 
   try {
-    // Try pdf-parse first (more reliable for test PDFs and real-world PDFs)
-    const result = await extractWithPdfParse(buffer, minTextLength, maxTextLength);
+    // Use unpdf (modern, TypeScript-native, no pdfjs-dist dependency)
+    const result = await extractWithUnpdf(buffer, minTextLength, maxTextLength);
     return result;
-  } catch (pdfParseError) {
+  } catch (error) {
     // If it's already a custom extraction error, rethrow it immediately
-    if (pdfParseError && typeof pdfParseError === "object" && "type" in pdfParseError) {
-      throw pdfParseError;
+    if (error && typeof error === "object" && "type" in error) {
+      throw error;
     }
 
-    // Try unpdf as fallback (modern, TypeScript-native)
-    try {
-      const result = await extractWithUnpdf(
-        buffer,
-        minTextLength,
-        maxTextLength
-      );
-      return result;
-    } catch (unpdfError) {
-      // Both failed - provide helpful error
-      const errorMessage =
-        pdfParseError instanceof Error ? pdfParseError.message : String(pdfParseError);
-      throw createPDFExtractionError("CORRUPTED_PDF", errorMessage);
-    }
+    // Convert generic errors to typed PDFExtractionError
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw createPDFExtractionError("CORRUPTED_PDF", errorMessage);
   }
 }
 
@@ -194,82 +181,3 @@ async function extractWithUnpdf(
   }
 }
 
-/**
- * Extract using pdf-parse library (fallback).
- * @internal
- */
-export async function extractWithPdfParse(
-  buffer: Buffer | Uint8Array,
-  minTextLength: number,
-  maxTextLength: number
-): Promise<PDFExtractionResult> {
-  try {
-    // Convert Uint8Array to Buffer if needed
-    const bufferData = Buffer.isBuffer(buffer)
-      ? buffer
-      : Buffer.from(buffer as Uint8Array);
-
-    // Extract text using PDFParse class
-    const pdfParser = new PDFParse({ data: bufferData });
-    const textResult = await pdfParser.getText();
-    const infoResult = await pdfParser.getInfo();
-
-    const data = {
-      text: textResult.text,
-      numpages: textResult.pages.length,
-      info: infoResult.info,
-    };
-
-    // Validate extracted text length
-    const text = data.text || "";
-    if (text.length < minTextLength) {
-      throw createPDFExtractionError(
-        "EMPTY_DOCUMENT",
-        "Could not extract sufficient text from this PDF. Scanned or image-only PDFs are not supported.",
-        { extractedLength: text.length, minimumRequired: minTextLength }
-      );
-    }
-
-    // Truncate if needed
-    const finalText =
-      text.length > maxTextLength ? text.slice(0, maxTextLength) : text;
-
-    // Get metadata title
-    const titleValue = data.info?.Title || infoResult.info?.Title;
-    const title = typeof titleValue === "string" ? titleValue : "";
-
-    return {
-      text: finalText.trim(),
-      pageCount: data.numpages || 1,
-      title,
-    };
-  } catch (error) {
-    // If it's already our custom error, rethrow
-    if (error && typeof error === "object" && "type" in error) {
-      throw error;
-    }
-
-    // Classify the error
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
-
-    if (
-      errorMessage.toLowerCase().includes("corrupted") ||
-      errorMessage.toLowerCase().includes("invalid pdf")
-    ) {
-      throw createPDFExtractionError("CORRUPTED_PDF", errorMessage);
-    }
-
-    if (errorMessage.toLowerCase().includes("not found")) {
-      throw createPDFExtractionError(
-        "UNSUPPORTED_FORMAT",
-        "PDF format is not supported or corrupted."
-      );
-    }
-
-    throw createPDFExtractionError(
-      "UNKNOWN_ERROR",
-      `Failed to extract PDF text: ${errorMessage}`
-    );
-  }
-}

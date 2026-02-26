@@ -11,33 +11,14 @@ import type {
   PDFExtractionError,
 } from "@/types/pdf-extraction";
 
-// Mock pdf-parse before importing pdf-extractor
-// Store mock methods globally to avoid hoisting issues
-declare global {
-  var mockParseInstance: { getText: ReturnType<typeof vi.fn>; getInfo: ReturnType<typeof vi.fn> };
-}
+// Mock unpdf before importing pdf-extractor
+const mockExtractText = vi.fn();
+const mockGetMeta = vi.fn();
 
-vi.mock("pdf-parse", () => {
-  const mockGetText = vi.fn();
-  const mockGetInfo = vi.fn();
-
-  const mockInstance = {
-    getText: mockGetText,
-    getInfo: mockGetInfo,
-  };
-
-  // Store in global to allow test file access
-  (globalThis as any).mockParseInstance = mockInstance;
-
-  // Return a class-like constructor
-  class MockPDFParse {
-    constructor() {
-      return mockInstance;
-    }
-  }
-
+vi.mock("unpdf", () => {
   return {
-    PDFParse: MockPDFParse,
+    extractText: mockExtractText,
+    getMeta: mockGetMeta,
   };
 });
 
@@ -152,7 +133,7 @@ describe("PDF Extraction - Error Handling", () => {
   });
 
   it("should throw CORRUPTED_PDF error when extraction fails", async () => {
-    globalThis.globalThis.mockParseInstance.getText.mockRejectedValueOnce(
+    mockExtractText.mockRejectedValueOnce(
       new Error("PDF is corrupted or invalid")
     );
 
@@ -164,7 +145,7 @@ describe("PDF Extraction - Error Handling", () => {
   });
 
   it("should maintain error type through fallback mechanism", async () => {
-    globalThis.mockParseInstance.getText.mockRejectedValue(new Error("Parse failed"));
+    mockExtractText.mockRejectedValue(new Error("Parse failed"));
 
     const pdfBuffer = Buffer.from("fake pdf");
 
@@ -178,12 +159,12 @@ describe("PDF Extraction - Error Handling", () => {
     }
   });
 
-  it("should rethrow EMPTY_DOCUMENT error from pdf-parse without fallback", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+  it("should rethrow EMPTY_DOCUMENT error from unpdf without fallback", async () => {
+    mockExtractText.mockResolvedValueOnce({
       text: "too short",
-      pages: [{ text: "too short" }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -198,8 +179,8 @@ describe("PDF Extraction - Error Handling", () => {
     }
   });
 
-  it("should handle non-Error exceptions from pdf-parse", async () => {
-    globalThis.mockParseInstance.getText.mockRejectedValueOnce("PDF is corrupted");
+  it("should handle non-Error exceptions from unpdf", async () => {
+    mockExtractText.mockRejectedValueOnce("PDF is corrupted");
 
     const pdfBuffer = Buffer.from("fake pdf");
 
@@ -212,8 +193,8 @@ describe("PDF Extraction - Error Handling", () => {
     }
   });
 
-  it("should classify 'not found' errors as UNSUPPORTED_FORMAT in pdf-parse", async () => {
-    globalThis.mockParseInstance.getText.mockRejectedValueOnce(
+  it("should classify 'not found' errors as CORRUPTED_PDF in unpdf", async () => {
+    mockExtractText.mockRejectedValueOnce(
       new Error("Font not found in PDF")
     );
 
@@ -221,16 +202,16 @@ describe("PDF Extraction - Error Handling", () => {
 
     try {
       await extractPDFText(pdfBuffer);
-      expect.fail("Should have thrown UNSUPPORTED_FORMAT");
+      expect.fail("Should have thrown error");
     } catch (error) {
       const pdfError = error as PDFExtractionError;
-      expect(pdfError.type).toBe("UNSUPPORTED_FORMAT");
-      expect(pdfError.message).toBe("PDF format is not supported or corrupted.");
+      expect(pdfError.type).toBe("CORRUPTED_PDF");
+      expect(pdfError.message).toContain("Font not found");
     }
   });
 
-  it("should classify unknown errors as UNKNOWN_ERROR in pdf-parse", async () => {
-    globalThis.mockParseInstance.getText.mockRejectedValueOnce(
+  it("should classify unknown errors as CORRUPTED_PDF in unpdf", async () => {
+    mockExtractText.mockRejectedValueOnce(
       new Error("Some unexpected error")
     );
 
@@ -238,10 +219,10 @@ describe("PDF Extraction - Error Handling", () => {
 
     try {
       await extractPDFText(pdfBuffer);
-      expect.fail("Should have thrown UNKNOWN_ERROR");
+      expect.fail("Should have thrown error");
     } catch (error) {
       const pdfError = error as PDFExtractionError;
-      expect(pdfError.type).toBe("UNKNOWN_ERROR");
+      expect(pdfError.type).toBe("CORRUPTED_PDF");
       expect(pdfError.message).toContain("Some unexpected error");
     }
   });
@@ -258,11 +239,11 @@ describe("PDF Extraction - Edge Cases", () => {
 
   it("should handle very large PDFs with truncation", async () => {
     const largeText = "x".repeat(1024 * 1024); // 1MB
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: largeText,
-      pages: [{ text: largeText }],
+      totalPages: 100,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -273,11 +254,11 @@ describe("PDF Extraction - Edge Cases", () => {
   });
 
   it("should handle minTextLength of 0", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: "",
-      pages: [{ text: "" }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -289,11 +270,11 @@ describe("PDF Extraction - Edge Cases", () => {
   });
 
   it("should pass text at minimum length", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: "x".repeat(50), // Exactly 50 chars
-      pages: [{ text: "x".repeat(50) }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -315,11 +296,11 @@ describe("PDF Extraction - Metadata Handling", () => {
   });
 
   it("should extract title from data.info.Title", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: "x".repeat(100),
-      pages: [{ text: "x".repeat(100) }],
+      totalPages: 5,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: { Title: "Contract Document" },
     } as any);
 
@@ -327,15 +308,15 @@ describe("PDF Extraction - Metadata Handling", () => {
     const result = await extractPDFText(pdfBuffer);
 
     expect(result.title).toBe("Contract Document");
-    expect(result.pageCount).toBe(1);
+    expect(result.pageCount).toBe(5);
   });
 
-  it("should extract title from data.metadata.Title as fallback", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+  it("should extract title from metadata.Title as fallback", async () => {
+    mockExtractText.mockResolvedValueOnce({
       text: "x".repeat(100),
-      pages: [{ text: "x".repeat(100) }],
+      totalPages: 3,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: { Title: "Invoice 2024" },
     } as any);
 
@@ -343,15 +324,15 @@ describe("PDF Extraction - Metadata Handling", () => {
     const result = await extractPDFText(pdfBuffer);
 
     expect(result.title).toBe("Invoice 2024");
-    expect(result.pageCount).toBe(1);
+    expect(result.pageCount).toBe(3);
   });
 
   it("should return empty string when title is not a string", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: "x".repeat(100),
-      pages: [{ text: "x".repeat(100) }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: { Title: 123 }, // Non-string title
     } as any);
 
@@ -362,11 +343,11 @@ describe("PDF Extraction - Metadata Handling", () => {
   });
 
   it("should handle missing metadata gracefully", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: "x".repeat(100),
-      pages: [{ text: "x".repeat(100) }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -379,11 +360,11 @@ describe("PDF Extraction - Metadata Handling", () => {
 
   it("should trim whitespace from extracted text", async () => {
     const whitespaceText = "   \n\n  x".repeat(15) + "   \n\n";
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: whitespaceText,
-      pages: [{ text: whitespaceText }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -404,12 +385,12 @@ describe("PDF Extraction - Error Classification", () => {
     vi.clearAllMocks();
   });
 
-  it("should throw EMPTY_DOCUMENT when pdf-parse returns text below minimum", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+  it("should throw EMPTY_DOCUMENT when unpdf returns text below minimum", async () => {
+    mockExtractText.mockResolvedValueOnce({
       text: "short", // Less than default 50 chars
-      pages: [{ text: "short" }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -424,12 +405,12 @@ describe("PDF Extraction - Error Classification", () => {
     }
   });
 
-  it("should include extraction details in EMPTY_DOCUMENT error from pdf-parse", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+  it("should include extraction details in EMPTY_DOCUMENT error from unpdf", async () => {
+    mockExtractText.mockResolvedValueOnce({
       text: "12345",
-      pages: [{ text: "12345" }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -450,11 +431,11 @@ describe("PDF Extraction - Error Classification", () => {
 
   it("should handle text exactly at maximum length without truncation beyond limit", async () => {
     const exactMaxText = "x".repeat(80_000);
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: exactMaxText,
-      pages: [{ text: exactMaxText }],
+      totalPages: 100,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
@@ -485,11 +466,11 @@ describe("PDF Extraction - Input Type Handling", () => {
   });
 
   it("should convert Uint8Array to Buffer internally", async () => {
-    globalThis.mockParseInstance.getText.mockResolvedValueOnce({
+    mockExtractText.mockResolvedValueOnce({
       text: "x".repeat(100),
-      pages: [{ text: "x".repeat(100) }],
+      totalPages: 1,
     } as any);
-    globalThis.mockParseInstance.getInfo.mockResolvedValue({
+    mockGetMeta.mockResolvedValue({
       info: {},
     } as any);
 
