@@ -32,22 +32,43 @@
   Result: Re-exports all 11 types from analysis.ts
 
   ---
-  Phase 3: API Infrastructure (3 steps)
-  Step: 6
+  Phase 3: API Infrastructure (3 steps) ✅ COMPLETED
+  Step: 6 ✅
   Action: In-memory rate limiter (5 req/min per IP, cleanup every 5 min)
   File(s): lib/rate-limit.ts
-  Risk: Medium
+  Result: Map-based store, 5 req/min per IP, 1-min window, cleanup every 5 min, evicts entries > 2 hours.
+    7 unit tests passing.
   ────────────────────────────────────────
-  Step: 7
+  Step: 7 ✅
   Action: PDF extraction endpoint: validate PDF, extract via pdf-parse, truncate to 80K chars
   File(s): app/api/extract/route.ts
-  Risk: Medium
+  Result: Validates MIME type, file size (10MB), rate limiting (5 req/min per IP), extracts via pdf-parse,
+    validates min text (50 chars), truncates to 80K chars, sanitized error messages. 10 unit tests passing.
   ────────────────────────────────────────
-  Step: 8
+  Step: 8 ✅
   Action: Claude analysis endpoint: rate limit check, call Claude with JSON-only system prompt, strip backticks, parse
     response
   File(s): app/api/analyze/route.ts
-  Risk: High
+  Result: API key validation, JSON body parse guard (400 for malformed JSON), input truncation (80K),
+    rate limiting, Claude API call (claude-sonnet-4-5-20250514), backtick stripping, JSON parsing
+    with error handling, sanitized error messages. 11 unit tests passing.
+
+  Phase 3 Summary:
+    Testing infrastructure: Vitest with @vitejs/plugin-react, node environment, @/ path alias, v8 coverage provider.
+    Test scripts added: npm test, npm run test:watch, npm run test:coverage.
+    TDD approach: RED (failing tests) → GREEN (minimal implementation) → REFACTOR for all 3 steps.
+    Total: 28 unit tests passing across 3 test suites (7 + 10 + 11).
+    Code review findings addressed:
+      - Added rate limiting to /api/extract endpoint (was missing)
+      - Added text truncation (80K) in /api/analyze endpoint
+      - Added JSON body parse guard in /api/analyze (400 for malformed JSON)
+      - Improved backtick stripping regex with multiline flag
+      - Added type guard on Anthropic response content
+      - Sanitized error messages in both endpoints (no API key or raw error leakage)
+    Build verification: npx tsc --noEmit clean, npm run build clean.
+    Files created: vitest.config.ts, lib/rate-limit.ts, lib/__tests__/rate-limit.test.ts,
+      app/api/extract/route.ts, app/api/extract/__tests__/route.test.ts,
+      app/api/analyze/route.ts, app/api/analyze/__tests__/route.test.ts.
   ---
   Phase 4: Core UI Components (4 steps)
   Step: 9
