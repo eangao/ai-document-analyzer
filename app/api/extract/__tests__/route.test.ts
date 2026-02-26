@@ -2,20 +2,44 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock pdf-parse before importing the route
-vi.mock("pdf-parse", () => ({
-  default: vi.fn(),
-}));
+// Store mock methods globally to avoid hoisting issues
+declare global {
+  var mockParseInstance: { getText: ReturnType<typeof vi.fn>; getInfo: ReturnType<typeof vi.fn> };
+}
+
+vi.mock("pdf-parse", () => {
+  const mockGetText = vi.fn();
+  const mockGetInfo = vi.fn();
+
+  const mockInstance = {
+    getText: mockGetText,
+    getInfo: mockGetInfo,
+  };
+
+  // Store in global to allow test file access
+  (globalThis as any).mockParseInstance = mockInstance;
+
+  // Return a class-like constructor
+  class MockPDFParse {
+    constructor() {
+      return mockInstance;
+    }
+  }
+
+  return {
+    PDFParse: MockPDFParse,
+  };
+});
 
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(),
 }));
 
 import { POST } from "@/app/api/extract/route";
-// @ts-expect-error pdf-parse has incomplete type definitions
-import pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-const mockedPdfParse = vi.mocked(pdfParse) as ReturnType<typeof vi.fn>;
+const MockPDFParse = vi.mocked(PDFParse) as ReturnType<typeof vi.fn>;
 const mockedCheckRateLimit = vi.mocked(checkRateLimit);
 
 function createFormDataRequest(
@@ -53,14 +77,13 @@ describe("POST /api/extract", () => {
 
   it("should extract text from a valid PDF", async () => {
     const sampleText = "This is a sample PDF document with enough text to pass validation.";
-    mockedPdfParse.mockResolvedValue({
+    globalThis.mockParseInstance.getText.mockResolvedValue({
       text: sampleText,
-      numpages: 3,
-      numrender: 3,
+      pages: [{ text: sampleText }, { text: sampleText }, { text: sampleText }],
+    } as any);
+    globalThis.mockParseInstance.getInfo.mockResolvedValue({
       info: { Title: "Test PDF" },
-      metadata: null,
-      version: "1.4",
-    });
+    } as any);
 
     const file = createPdfFile("fake-pdf-content");
     const request = createFormDataRequest(file);
@@ -108,14 +131,13 @@ describe("POST /api/extract", () => {
   });
 
   it("should return 400 for scanned/image-only PDFs (text < 50 chars)", async () => {
-    mockedPdfParse.mockResolvedValue({
+    globalThis.mockParseInstance.getText.mockResolvedValue({
       text: "   \n\n  short  ",
-      numpages: 1,
-      numrender: 1,
+      pages: [{ text: "   \n\n  short  " }],
+    } as any);
+    globalThis.mockParseInstance.getInfo.mockResolvedValue({
       info: {},
-      metadata: null,
-      version: "1.4",
-    });
+    } as any);
 
     const file = createPdfFile("fake-pdf");
     const request = createFormDataRequest(file);
@@ -129,14 +151,13 @@ describe("POST /api/extract", () => {
 
   it("should truncate extracted text to 80,000 characters", async () => {
     const longText = "A".repeat(100_000);
-    mockedPdfParse.mockResolvedValue({
+    globalThis.mockParseInstance.getText.mockResolvedValue({
       text: longText,
-      numpages: 50,
-      numrender: 50,
+      pages: [{ text: longText }],
+    } as any);
+    globalThis.mockParseInstance.getInfo.mockResolvedValue({
       info: {},
-      metadata: null,
-      version: "1.4",
-    });
+    } as any);
 
     const file = createPdfFile("fake-pdf");
     const request = createFormDataRequest(file);
@@ -148,8 +169,8 @@ describe("POST /api/extract", () => {
     expect(body.text.length).toBe(80_000);
   });
 
-  it("should return 500 when pdf-parse throws an error", async () => {
-    mockedPdfParse.mockRejectedValue(new Error("Corrupted PDF"));
+  it("should return 400 when pdf-parse throws a corruption error", async () => {
+    globalThis.mockParseInstance.getText.mockRejectedValue(new Error("Corrupted PDF"));
 
     const file = createPdfFile("bad-pdf");
     const request = createFormDataRequest(file);
@@ -157,7 +178,7 @@ describe("POST /api/extract", () => {
     const response = await POST(request);
     const body = await response.json();
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(400);
     expect(body.error).toBeDefined();
   });
 
@@ -191,7 +212,7 @@ describe("POST /api/extract", () => {
   });
 
   it("should not leak internal error details on pdf-parse failure", async () => {
-    mockedPdfParse.mockRejectedValue(new Error("Internal buffer overflow at 0x7fff"));
+    globalThis.mockParseInstance.getText.mockRejectedValue(new Error("Internal buffer overflow at 0x7fff"));
 
     const file = createPdfFile("bad-pdf");
     const request = createFormDataRequest(file);

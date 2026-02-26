@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdf-parse"],
+  // No external packages needed - pdfjs-dist has proper ES module support
 };
 
 export default nextConfig;
