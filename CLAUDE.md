@@ -114,23 +114,18 @@ This project uses **only** the personal GitHub account.
 
 ### Branch Strategy
 
-- **Main branch:** `main`
-- **Staging branch:** `staging` (pre-production, merge to `main` via PR)
-- **Dev branch:** `dev` (active development, merge to `staging` via PR)
-- **Feature branches:** Create from `dev`, merge back via PR.
+- **Main branch:** `main` (production-ready, protected)
+- **Staging branch:** `staging` (pre-production, merge to `main` via PR — create when MVP is ready)
+- **Dev branch:** `dev` (active development, all MVP work happens here)
+- **Feature branches:** Create from `dev` for post-MVP work, merge back via PR.
 
-When starting new development work:
-
-```bash
-git checkout dev
-git pull
-git checkout -b feature/my-feature
-```
+**MVP phase:** Work directly on `dev`. No feature branches needed during initial build.
+**Post-MVP:** `dev` → PR to `staging` → PR to `main` → deploy.
 
 Push with:
 
 ```bash
-git push -u origin feature/my-feature
+git push -u origin dev
 
 ## Do NOT
 - Do NOT add a database, auth, or user accounts — this is an MVP
