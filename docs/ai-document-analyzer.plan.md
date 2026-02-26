@@ -70,26 +70,45 @@
       app/api/extract/route.ts, app/api/extract/__tests__/route.test.ts,
       app/api/analyze/route.ts, app/api/analyze/__tests__/route.test.ts.
   ---
-  Phase 4: Core UI Components (4 steps)
-  Step: 9
+  Phase 4: Core UI Components (4 steps) ✅ COMPLETED
+  Step: 9 ✅
   Action: Root layout + page structure (client component with state management)
   File(s): app/layout.tsx, app/page.tsx
-  Risk: Low
+  Result: Server layout with Geist fonts, metadata, TooltipProvider wrapper. Client page component with
+    4-state machine (idle/processing/complete/error), useCallback handlers for upload lifecycle,
+    conditional rendering per state. Header with FileText icon + app title.
   ────────────────────────────────────────
-  Step: 10
+  Step: 10 ✅
   Action: FileUpload: drag & drop, validation, calls extract→analyze APIs
   File(s): components/FileUpload.tsx
-  Risk: Medium
+  Result: Drag-and-drop zone with Card component, validates MIME type (PDF only) and file size (10MB),
+    calls /api/extract with FormData then /api/analyze with JSON body, error handling for both API
+    responses and network failures, disabled state support. 13 unit tests passing.
   ────────────────────────────────────────
-  Step: 11
+  Step: 11 ✅
   Action: AnalysisLoader: step-by-step loading animation
   File(s): components/AnalysisLoader.tsx
-  Risk: Low
+  Result: 3-step loader (uploading/extracting/analyzing) with complete/active/pending status icons,
+    CheckCircle2 for complete, Loader2 spinner for active, Circle for pending. Accessible role="status".
+    8 unit tests passing.
   ────────────────────────────────────────
-  Step: 12
+  Step: 12 ✅
   Action: ExportButton: JSON download
   File(s): components/ExportButton.tsx
-  Risk: Low
+  Result: Creates JSON blob from DocumentAnalysis, generates timestamped filename (analysis-YYYY-MM-DDTHH-MM-SS.json),
+    triggers download via programmatic anchor click, disabled when data is null. 5 unit tests passing.
+
+  Phase 4 Summary:
+    TDD approach: RED → GREEN → REFACTOR for all 4 steps.
+    Total: 26 unit tests passing across 3 test suites (13 + 8 + 5).
+    Testing infrastructure updated: vitest.config.ts with jsdom environment, @vitejs/plugin-react,
+      vitest.setup.ts with @testing-library/jest-dom/vitest.
+    New dev dependencies: @testing-library/react, @testing-library/user-event, @testing-library/jest-dom, jsdom.
+    Build verification: npx tsc --noEmit clean, npm run build clean.
+    Files created: components/FileUpload.tsx, components/__tests__/FileUpload.test.tsx,
+      components/AnalysisLoader.tsx, components/__tests__/AnalysisLoader.test.tsx,
+      components/ExportButton.tsx, components/__tests__/ExportButton.test.tsx, vitest.setup.ts.
+    Files modified: app/layout.tsx, app/page.tsx, vitest.config.ts, package.json.
   ---
   Phase 5: Dashboard Components (8 steps)
 
@@ -114,13 +133,15 @@
   │ 20   │ ActionItems.tsx       │ Checklist-style list                                                  │ Low    │
   └──────┴───────────────────────┴───────────────────────────────────────────────────────────────────────┴────────┘
   ---
-  Phase 6: shadcn/ui Setup (1 step)
-  ┌──────┬──────────────────────────────────────────────────────────────────────────────────┬──────┐
-  │ Step │                                      Action                                      │ Risk │
-  ├──────┼──────────────────────────────────────────────────────────────────────────────────┼──────┤
-  │ 21   │ Install via CLI: Card, Badge, Button, Table, Alert, Separator, Tooltip, Skeleton │ Low  │
-  └──────┴──────────────────────────────────────────────────────────────────────────────────┴──────┘
-  Note: This should happen early (after Phase 1) so components are available during Phase 4-5.
+  Phase 6: shadcn/ui Setup (1 step) ✅ COMPLETED
+  Step: 21 ✅
+  Action: Install via CLI: Card, Badge, Button, Table, Alert, Separator, Tooltip, Skeleton
+  Result: All 8 shadcn/ui components installed via `npx shadcn@latest add`. New-york style, neutral base color,
+    CSS variables enabled. components.json configured with @/ aliases. lib/utils.ts created with cn() helper
+    (clsx + tailwind-merge). globals.css updated with full shadcn/ui CSS variable theme (light + dark mode).
+    Dependencies added: radix-ui, class-variance-authority, clsx, tailwind-merge, tw-animate-css.
+    Files created: components.json, lib/utils.ts, components/ui/{card,badge,button,table,alert,separator,tooltip,skeleton}.tsx.
+    Files modified: app/globals.css, package.json, package-lock.json.
 
   ---
   Phase 7: Integration & Verification (2 steps)
@@ -143,9 +164,9 @@
   ---
   Dependency Graph
 
-  Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 7 → Phase 8
-                                     ↑
-                              Phase 6 (shadcn/ui install - do early)
+  Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ → Phase 4 ✅ → Phase 5 → Phase 7 → Phase 8
+                                           ↑
+                                    Phase 6 ✅ (shadcn/ui install - done early)
 
   Critical Path: Bootstrap → Types → API Routes → Page + FileUpload → Dashboard → Integration
 
