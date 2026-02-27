@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { generateRateLimitError } from "@/lib/error-messages";
 import { extractPDFText } from "@/lib/pdf-extractor";
 import type { PDFExtractionError } from "@/types/pdf-extraction";
+import type { RateLimitErrorResponse } from "@/types";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TEXT_LENGTH = 80_000;
@@ -20,15 +22,25 @@ interface ErrorResponse {
 
 export async function POST(
   request: Request
-): Promise<NextResponse<ExtractResponse | ErrorResponse>> {
+): Promise<NextResponse<ExtractResponse | ErrorResponse | RateLimitErrorResponse>> {
   try {
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
-    const rateCheck = checkRateLimit(ip);
+    const now = Date.now();
+    const rateCheck = checkRateLimit(ip, now);
 
     if (!rateCheck.allowed) {
+      const errorInfo = generateRateLimitError(
+        rateCheck.limitType!,
+        rateCheck.retryAfter
+      );
       return NextResponse.json(
-        { error: "Rate limit exceeded. Please try again later." },
+        {
+          message: errorInfo.message,
+          rateLimitType: rateCheck.limitType,
+          retryAfterSeconds: rateCheck.retryAfter,
+          demoNote: true,
+        } as RateLimitErrorResponse,
         {
           status: 429,
           headers: { "Retry-After": String(rateCheck.retryAfter) },

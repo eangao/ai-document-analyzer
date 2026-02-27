@@ -109,6 +109,7 @@ describe("POST /api/analyze", () => {
       allowed: false,
       remaining: 0,
       retryAfter: 30,
+      limitType: "global",
     });
 
     const request = createJsonRequest({ text: "Some document text" });
@@ -116,7 +117,9 @@ describe("POST /api/analyze", () => {
     const body = await response.json();
 
     expect(response.status).toBe(429);
-    expect(body.error).toMatch(/rate limit/i);
+    expect(body.message).toBeTruthy();
+    expect(body.rateLimitType).toBeDefined();
+    expect(body.retryAfterSeconds).toBe(30);
     expect(response.headers.get("Retry-After")).toBe("30");
   });
 
@@ -215,6 +218,10 @@ describe("POST /api/analyze", () => {
 
     await POST(request);
 
-    expect(mockedCheckRateLimit).toHaveBeenCalledWith("203.0.113.50");
+    // checkRateLimit is now called with (ip, timestamp) parameters
+    expect(mockedCheckRateLimit).toHaveBeenCalledWith(
+      "203.0.113.50",
+      expect.any(Number)
+    );
   });
 });

@@ -175,6 +175,7 @@ describe("POST /api/extract", () => {
       allowed: false,
       remaining: 0,
       retryAfter: 45,
+      limitType: "per-ip",
     });
 
     const file = createPdfFile("fake-pdf-content");
@@ -184,7 +185,9 @@ describe("POST /api/extract", () => {
     const body = await response.json();
 
     expect(response.status).toBe(429);
-    expect(body.error).toMatch(/rate limit/i);
+    expect(body.message).toBeTruthy();
+    expect(body.rateLimitType).toBeDefined();
+    expect(body.retryAfterSeconds).toBe(45);
     expect(response.headers.get("Retry-After")).toBe("45");
   });
 

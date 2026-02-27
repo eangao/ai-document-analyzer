@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
-import type { DocumentAnalysis } from "@/types";
+import { generateRateLimitError } from "@/lib/error-messages";
+import { getTruncationLength } from "@/lib/demo-mode";
+import type { DocumentAnalysis, RateLimitErrorResponse } from "@/types";
 
 interface ErrorResponse {
   readonly error: string;
@@ -24,8 +26,6 @@ The JSON must conform to this exact structure:
 
 Return ONLY the JSON object. No markdown. No backticks. No additional text.`;
 
-const MAX_TEXT_LENGTH = 80_000;
-
 function stripBackticks(text: string): string {
   let cleaned = text.trim();
   if (cleaned.startsWith("```")) {
@@ -40,7 +40,7 @@ function getClientIp(request: Request): string {
 
 export async function POST(
   request: Request
-): Promise<NextResponse<DocumentAnalysis | ErrorResponse>> {
+): Promise<NextResponse<DocumentAnalysis | ErrorResponse | RateLimitErrorResponse>> {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -61,9 +61,8 @@ export async function POST(
     }
 
     const rawText = typeof body.text === "string" ? body.text.trim() : "";
-    const text = rawText.slice(0, MAX_TEXT_LENGTH);
 
-    if (!text) {
+    if (!rawText) {
       return NextResponse.json(
         { error: "Text content is required for analysis." },
         { status: 400 }
@@ -71,17 +70,31 @@ export async function POST(
     }
 
     const ip = getClientIp(request);
-    const rateCheck = checkRateLimit(ip);
+    const now = Date.now();
+    const rateCheck = checkRateLimit(ip, now);
 
     if (!rateCheck.allowed) {
+      const errorInfo = generateRateLimitError(
+        rateCheck.limitType!,
+        rateCheck.retryAfter
+      );
       return NextResponse.json(
-        { error: "Rate limit exceeded. Please try again later." },
+        {
+          message: errorInfo.message,
+          rateLimitType: rateCheck.limitType,
+          retryAfterSeconds: rateCheck.retryAfter,
+          demoNote: true,
+        } as RateLimitErrorResponse,
         {
           status: 429,
           headers: { "Retry-After": String(rateCheck.retryAfter) },
         }
       );
     }
+
+    // Apply demo mode truncation before API call
+    const truncationLength = getTruncationLength();
+    const text = rawText.slice(0, truncationLength);
 
     const client = new Anthropic({ apiKey });
     const message = await client.messages.create({
