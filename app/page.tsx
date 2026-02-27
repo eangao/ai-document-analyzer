@@ -9,7 +9,9 @@ import { ExportButton } from "@/components/ExportButton";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AnalysisDashboard } from "@/components/dashboard/AnalysisDashboard";
+import { RateLimitAlert } from "@/components/RateLimitAlert";
 import type { DocumentAnalysis } from "@/types";
+import type { ParsedError } from "@/lib/error-parser";
 
 type AppState = "idle" | "processing" | "complete" | "error";
 
@@ -17,7 +19,7 @@ export default function Home() {
   const [appState, setAppState] = useState<AppState>("idle");
   const [loaderStep, setLoaderStep] = useState<LoaderStep>("uploading");
   const [analysis, setAnalysis] = useState<DocumentAnalysis | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ParsedError | null>(null);
 
   const handleUploadStart = useCallback(() => {
     setAppState("processing");
@@ -35,9 +37,16 @@ export default function Home() {
     setAppState("complete");
   }, []);
 
-  const handleError = useCallback((message: string) => {
-    setError(message);
+  const handleError = useCallback((parsedError: ParsedError) => {
+    setError(parsedError);
     setAppState("error");
+  }, []);
+
+  const handleRateLimitReady = useCallback(() => {
+    // Reset to idle when user can retry after rate limit expires
+    setAppState("idle");
+    setError(null);
+    setLoaderStep("uploading");
   }, []);
 
   const handleReset = useCallback(() => {
@@ -87,17 +96,27 @@ export default function Home() {
           </div>
         )}
 
-        {appState === "error" && (
+        {appState === "error" && error && (
           <div className="mx-auto max-w-xl space-y-4">
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-            <FileUpload
-              onUploadStart={handleUploadStart}
-              onExtractComplete={handleExtractComplete}
-              onAnalysisComplete={handleAnalysisComplete}
-              onError={handleError}
-            />
+            {error.type === "rate-limit" && error.rateLimitType && error.retryAfterSeconds !== undefined ? (
+              <RateLimitAlert
+                limitType={error.rateLimitType}
+                retryAfterSeconds={error.retryAfterSeconds}
+                onRetryReady={handleRateLimitReady}
+              />
+            ) : (
+              <Alert variant="destructive">
+                <AlertDescription>{error.message}</AlertDescription>
+              </Alert>
+            )}
+            {error.type !== "rate-limit" && (
+              <FileUpload
+                onUploadStart={handleUploadStart}
+                onExtractComplete={handleExtractComplete}
+                onAnalysisComplete={handleAnalysisComplete}
+                onError={handleError}
+              />
+            )}
           </div>
         )}
 

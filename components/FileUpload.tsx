@@ -5,6 +5,8 @@ import { Upload } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { DocumentAnalysis } from "@/types";
+import type { ParsedError } from "@/lib/error-parser";
+import { parseAnalysisError } from "@/lib/error-parser";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_TYPE = "application/pdf";
@@ -13,7 +15,7 @@ interface FileUploadProps {
   readonly onUploadStart: () => void;
   readonly onExtractComplete: () => void;
   readonly onAnalysisComplete: (data: DocumentAnalysis) => void;
-  readonly onError: (message: string) => void;
+  readonly onError: (error: ParsedError) => void;
   readonly disabled?: boolean;
 }
 
@@ -30,12 +32,24 @@ export function FileUpload({
   const processFile = useCallback(
     async (file: File) => {
       if (file.type !== ACCEPTED_TYPE) {
-        onError("Invalid file type. Only PDF files are accepted.");
+        // Create a client-side validation error
+        const validationError = Object.freeze({
+          type: "extraction" as const,
+          message: "Invalid file type. Only PDF files are accepted.",
+          isDemoLimit: false,
+        });
+        onError(validationError);
         return;
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        onError("File size exceeds the 10MB limit.");
+        // Create a client-side validation error
+        const validationError = Object.freeze({
+          type: "extraction" as const,
+          message: "File size exceeds the 10MB limit.",
+          isDemoLimit: false,
+        });
+        onError(validationError);
         return;
       }
 
@@ -53,10 +67,19 @@ export function FileUpload({
 
         if (!extractRes.ok) {
           try {
-            const extractErr = await extractRes.json();
-            onError(extractErr.error ?? "Failed to extract text from PDF.");
+            const errorData = await extractRes.json();
+            const parsedError = parseAnalysisError({
+              status: extractRes.status,
+              body: errorData,
+            });
+            onError(parsedError);
           } catch {
-            onError("Failed to extract text from PDF.");
+            const networkError = Object.freeze({
+              type: "extraction" as const,
+              message: "Failed to extract text from PDF.",
+              isDemoLimit: false,
+            });
+            onError(networkError);
           }
           return;
         }
@@ -73,10 +96,19 @@ export function FileUpload({
 
         if (!analyzeRes.ok) {
           try {
-            const analyzeErr = await analyzeRes.json();
-            onError(analyzeErr.error ?? "Failed to analyze document.");
+            const errorData = await analyzeRes.json();
+            const parsedError = parseAnalysisError({
+              status: analyzeRes.status,
+              body: errorData,
+            });
+            onError(parsedError);
           } catch {
-            onError("Failed to analyze document.");
+            const analysisError = Object.freeze({
+              type: "analysis" as const,
+              message: "Failed to analyze document.",
+              isDemoLimit: false,
+            });
+            onError(analysisError);
           }
           return;
         }
@@ -84,9 +116,13 @@ export function FileUpload({
         const analysisData: DocumentAnalysis = await analyzeRes.json();
         onAnalysisComplete(analysisData);
       } catch {
-        onError(
-          "Network error. Please check your connection and try again."
-        );
+        // Network or other unexpected error
+        const networkError = Object.freeze({
+          type: "network" as const,
+          message: "Network error. Please check your connection and try again.",
+          isDemoLimit: false,
+        });
+        onError(networkError);
       }
     },
     [onUploadStart, onExtractComplete, onAnalysisComplete, onError]

@@ -71,7 +71,11 @@ describe("FileUpload", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(onError).toHaveBeenCalledWith(
-      "Invalid file type. Only PDF files are accepted."
+      expect.objectContaining({
+        type: "extraction",
+        message: "Invalid file type. Only PDF files are accepted.",
+        isDemoLimit: false,
+      })
     );
     expect(mockFetch).not.toHaveBeenCalled();
   });
@@ -93,7 +97,13 @@ describe("FileUpload", () => {
     const input = screen.getByTestId("file-input");
     await user.upload(input, file);
 
-    expect(onError).toHaveBeenCalledWith("File size exceeds the 10MB limit.");
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "extraction",
+        message: "File size exceeds the 10MB limit.",
+        isDemoLimit: false,
+      })
+    );
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -228,6 +238,7 @@ describe("FileUpload", () => {
     const user = userEvent.setup();
     mockFetch.mockResolvedValueOnce({
       ok: false,
+      status: 400,
       json: () => Promise.resolve({ error: "PDF extraction failed" }),
     });
 
@@ -245,7 +256,12 @@ describe("FileUpload", () => {
     await user.upload(input, file);
 
     await waitFor(() => {
-      expect(onError).toHaveBeenCalledWith("PDF extraction failed");
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "extraction",
+          message: "PDF extraction failed",
+        })
+      );
     });
   });
 
@@ -257,6 +273,7 @@ describe("FileUpload", () => {
     });
     mockFetch.mockResolvedValueOnce({
       ok: false,
+      status: 500,
       json: () => Promise.resolve({ error: "Analysis failed" }),
     });
 
@@ -274,7 +291,12 @@ describe("FileUpload", () => {
     await user.upload(input, file);
 
     await waitFor(() => {
-      expect(onError).toHaveBeenCalledWith("Analysis failed");
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "analysis",
+          message: "Analysis failed",
+        })
+      );
     });
   });
 
@@ -296,7 +318,12 @@ describe("FileUpload", () => {
     await user.upload(input, file);
 
     await waitFor(() => {
-      expect(onError).toHaveBeenCalledWith("Network error. Please check your connection and try again.");
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "network",
+          message: "Network error. Please check your connection and try again.",
+        })
+      );
     });
   });
 
