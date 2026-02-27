@@ -34,10 +34,10 @@ Upload any PDF document and get instant AI-powered structured analysis — summa
 | **Language** | TypeScript (strict mode) |
 | **AI Model** | Claude Sonnet 4.5 (Anthropic API) |
 | **UI Components** | shadcn/ui + Tailwind CSS |
-| **PDF Processing** | pdf-parse |
+| **PDF Processing** | unpdf |
 | **Icons** | lucide-react |
 | **Deployment** | Vercel |
-| **Testing** | Jest + React Testing Library (333 tests) |
+| **Testing** | Vitest + React Testing Library (492 tests) |
 
 ---
 
@@ -165,12 +165,12 @@ ai-document-analyzer/
 
 ## 🧪 Testing
 
-The project includes comprehensive test coverage (333 tests):
+The project includes comprehensive test coverage (492 tests):
 
-- **API Integration Tests** (38 tests) — End-to-end API workflows, rate limiting, security
-- **API Validation Tests** (62 tests) — Input validation, error handling, HTTP status codes
-- **Accessibility Tests** (37 tests) — WCAG 2.1 Level A/AA compliance
-- **Responsive Design Tests** (41 tests) — Mobile-first layouts, touch targets, dark mode
+- **Component Tests** — All React components with accessibility and responsive design checks
+- **API Tests** — Integration tests, validation tests, rate limiting, security
+- **End-to-End Tests** — Full user workflows, error handling, export functionality
+- **Accessibility Tests** — WCAG 2.1 Level A/AA compliance across all components
 
 **Coverage:** All critical paths tested with focus on error handling, accessibility, and user experience.
 
