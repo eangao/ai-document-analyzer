@@ -179,7 +179,7 @@ describe("POST /api/analyze", () => {
 
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "claude-sonnet-4-5-20250514",
+        model: "claude-sonnet-4-5-20250929",
         max_tokens: 4096,
       })
     );

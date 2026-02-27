@@ -8,6 +8,7 @@ import type { LoaderStep } from "@/components/AnalysisLoader";
 import { ExportButton } from "@/components/ExportButton";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AnalysisDashboard } from "@/components/dashboard/AnalysisDashboard";
 import type { DocumentAnalysis } from "@/types";
 
 type AppState = "idle" | "processing" | "complete" | "error";
@@ -55,7 +56,11 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main
+        className={`mx-auto px-4 py-8 ${
+          appState === "complete" ? "max-w-7xl" : "max-w-5xl"
+        }`}
+      >
         {appState === "idle" && (
           <div className="mx-auto max-w-xl">
             <div className="mb-6 text-center">
@@ -110,10 +115,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Dashboard components will be added in Phase 5 */}
-            <pre className="max-h-[600px] overflow-auto rounded-lg border bg-muted p-4 text-sm">
-              {JSON.stringify(analysis, null, 2)}
-            </pre>
+            <AnalysisDashboard data={analysis} />
           </div>
         )}
       </main>
