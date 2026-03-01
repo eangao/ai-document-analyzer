@@ -2,7 +2,7 @@
 
 Upload any PDF document and get instant AI-powered structured analysis — summaries, key entities, dates, obligations, risk flags, and action items.
 
-**Live Demo**: [Coming Soon - Deploying to Vercel]
+**Live Demo**: [https://ai-document-analyzer-ea.vercel.app](https://ai-document-analyzer-ea.vercel.app)
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)
@@ -102,6 +102,30 @@ npm run test:watch
 # Run tests with coverage
 npm run test:coverage
 ```
+
+---
+
+## 📄 Sample Documents for Testing
+
+The repository includes **7 sample PDFs** in `docs/sample documents/` to test the analyzer:
+
+| Document Type | Filename | What It Tests |
+|---------------|----------|---------------|
+| **Contract** | `sample-contract.pdf` | Multi-party agreements, obligations, dates, risk flags |
+| **Invoice** | `sample-invoice.pdf` | Financial items, payment terms, line items, totals |
+| **Report** | `sample-report.pdf` | Executive summaries, data analysis, findings |
+| **Legal (NDA)** | `sample-nda-legal.pdf` | Legal terminology, confidentiality clauses, penalties |
+| **Financial Statement** | `sample-financial-statement.pdf` | Complex financial data, accounting terms, balance sheets |
+| **Business Letter** | `sample-business-letter.pdf` | Simple document structure, minimal entities |
+| **Employee Handbook** | `sample-employee-handbook.pdf` | Policies, procedures, obligations, multi-section documents |
+
+**How to Use:**
+1. Run the app locally (`npm run dev`) or visit the [live demo](https://ai-document-analyzer-ea.vercel.app)
+2. Upload any sample document from `docs/sample documents/`
+3. Observe how the AI extracts entities, dates, obligations, risk flags, and financial items
+4. Compare results across different document types
+
+**Note:** These are synthetic samples created for demonstration purposes. Results showcase the analyzer's capabilities across various business document formats.
 
 ---
 
