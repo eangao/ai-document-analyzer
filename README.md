@@ -68,7 +68,7 @@ Create a `.env.local` file in the project root:
 
 ```env
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
-DEMO_MODE=true  # Enable cost control (5K char limit vs 80K) - recommended for portfolio demos
+DEMO_MODE=true  # Enable cost control (5K char limit vs 80K)
 ```
 
 **Environment Variables Explained:**
@@ -120,12 +120,10 @@ The repository includes **7 sample PDFs** in `docs/sample documents/` to test th
 | **Employee Handbook** | `sample-employee-handbook.pdf` | Policies, procedures, obligations, multi-section documents |
 
 **How to Use:**
-1. Run the app locally (`npm run dev`) or visit the [live demo](https://ai-document-analyzer-ea.vercel.app)
-2. Upload any sample document from `docs/sample documents/`
+1. Visit the [live demo](https://ai-document-analyzer-ea.vercel.app)
+2. Upload any sample document from the `docs/sample documents/` folder in this repository
 3. Observe how the AI extracts entities, dates, obligations, risk flags, and financial items
 4. Compare results across different document types
-
-**Note:** These are synthetic samples created for demonstration purposes. Results showcase the analyzer's capabilities across various business document formats.
 
 ---
 
@@ -162,6 +160,8 @@ ai-document-analyzer/
 │   ├── error-messages.ts          # User-friendly error message generation
 │   ├── error-parser.ts            # Frontend error type discrimination
 │   └── demo-mode.ts               # Cost control configuration
+├── docs/
+│   └── sample documents/          # 7 sample PDFs for testing (contracts, invoices, reports, etc.)
 └── next.config.ts                 # Next.js 16 TypeScript config
 ```
 
@@ -277,7 +277,7 @@ With current limits and `DEMO_MODE=true`:
 2. Import your GitHub repository
 3. Add environment variables in Vercel dashboard:
    - `ANTHROPIC_API_KEY` = your Anthropic API key
-   - `DEMO_MODE` = `true` (recommended for portfolio demos to control costs)
+   - `DEMO_MODE` = `true` (optional, enables cost control)
 4. Click **Deploy**
 
 Your app will be live at `your-project.vercel.app`
