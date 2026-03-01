@@ -1,64 +1,142 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useCallback } from "react";
+import { FileText } from "lucide-react";
+import { FileUpload } from "@/components/FileUpload";
+import { AnalysisLoader } from "@/components/AnalysisLoader";
+import type { LoaderStep } from "@/components/AnalysisLoader";
+import { ExportButton } from "@/components/ExportButton";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AnalysisDashboard } from "@/components/dashboard/AnalysisDashboard";
+import { RateLimitAlert } from "@/components/RateLimitAlert";
+import type { DocumentAnalysis } from "@/types";
+import type { ParsedError } from "@/lib/error-parser";
+
+type AppState = "idle" | "processing" | "complete" | "error";
 
 export default function Home() {
+  const [appState, setAppState] = useState<AppState>("idle");
+  const [loaderStep, setLoaderStep] = useState<LoaderStep>("uploading");
+  const [analysis, setAnalysis] = useState<DocumentAnalysis | null>(null);
+  const [error, setError] = useState<ParsedError | null>(null);
+
+  const handleUploadStart = useCallback(() => {
+    setAppState("processing");
+    setLoaderStep("uploading");
+    setAnalysis(null);
+    setError(null);
+  }, []);
+
+  const handleExtractComplete = useCallback(() => {
+    setLoaderStep("analyzing");
+  }, []);
+
+  const handleAnalysisComplete = useCallback((data: DocumentAnalysis) => {
+    setAnalysis(data);
+    setAppState("complete");
+  }, []);
+
+  const handleError = useCallback((parsedError: ParsedError) => {
+    setError(parsedError);
+    setAppState("error");
+  }, []);
+
+  const handleRateLimitReady = useCallback(() => {
+    // Reset to idle when user can retry after rate limit expires
+    setAppState("idle");
+    setError(null);
+    setLoaderStep("uploading");
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setAppState("idle");
+    setLoaderStep("uploading");
+    setAnalysis(null);
+    setError(null);
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4">
+          <FileText className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-semibold">AI Document Analyzer</h1>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      </header>
+
+      <main
+        className={`mx-auto px-4 py-8 ${
+          appState === "complete" ? "max-w-7xl" : "max-w-5xl"
+        }`}
+      >
+        {appState === "idle" && (
+          <div className="mx-auto max-w-xl">
+            <div className="mb-6 text-center">
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Analyze your documents
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                Upload a PDF to extract structured data — summaries, entities,
+                dates, financials, and more.
+              </p>
+            </div>
+            <FileUpload
+              onUploadStart={handleUploadStart}
+              onExtractComplete={handleExtractComplete}
+              onAnalysisComplete={handleAnalysisComplete}
+              onError={handleError}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+          </div>
+        )}
+
+        {appState === "processing" && (
+          <div className="mx-auto max-w-md">
+            <AnalysisLoader step={loaderStep} />
+          </div>
+        )}
+
+        {appState === "error" && error && (
+          <div className="mx-auto max-w-xl space-y-4">
+            {error.type === "rate-limit" && error.rateLimitType && error.retryAfterSeconds !== undefined ? (
+              <RateLimitAlert
+                limitType={error.rateLimitType}
+                retryAfterSeconds={error.retryAfterSeconds}
+                onRetryReady={handleRateLimitReady}
+              />
+            ) : (
+              <Alert variant="destructive">
+                <AlertDescription>{error.message}</AlertDescription>
+              </Alert>
+            )}
+            {error.type !== "rate-limit" && (
+              <FileUpload
+                onUploadStart={handleUploadStart}
+                onExtractComplete={handleExtractComplete}
+                onAnalysisComplete={handleAnalysisComplete}
+                onError={handleError}
+              />
+            )}
+          </div>
+        )}
+
+        {appState === "complete" && analysis && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Analysis Results
+              </h2>
+              <div className="flex gap-2">
+                <ExportButton data={analysis} />
+                <Button variant="outline" onClick={handleReset}>
+                  Analyze Another
+                </Button>
+              </div>
+            </div>
+
+            <AnalysisDashboard data={analysis} />
+          </div>
+        )}
       </main>
     </div>
   );

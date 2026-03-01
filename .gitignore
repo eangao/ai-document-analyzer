@@ -44,5 +44,6 @@ next-env.d.ts
 .claude/
 CLAUDE.md
 
-# documentation (local only)
-docs/
+# documentation (local only) - keep sample documents but ignore plans
+docs/plan/
+docs/*.md
